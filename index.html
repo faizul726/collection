@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Index of /</title>
+  <style>
+    body {
+      font-family: monospace, monospace;
+      margin: 20px;
+      background: white;
+      color: black;
+    }
+    h1 {
+      font-weight: normal;
+      font-size: 24px;
+      margin-bottom: 1em;
+    }
+    a {
+      color: #0645ad;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    li {
+      margin: 0.2em 0;
+    }
+    .breadcrumb {
+      font-family: monospace;
+      margin-bottom: 1em;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Index of /<span id="path-display"></span></h1>
+
+<div class="breadcrumb" id="breadcrumb"></div>
+
+<ul id="file-list"></ul>
+
+<script>
+  const owner = "torvalds";  // Change this to your desired repo owner
+  const repo = "linux";       // Change this to your desired repo name
+  let currentPath = "";
+
+  async function loadFiles(path = "") {
+    currentPath = path;
+    document.getElementById('path-display').textContent = path ? '/' + path : '';
+
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      alert("Failed to load directory.");
+      return;
+    }
+
+    const files = await res.json();
+
+    // Sort: directories first, then files, alphabetically
+    files.sort((a, b) => {
+      if (a.type === b.type) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.type === "dir" ? -1 : 1;
+    });
+
+    // Breadcrumb
+    renderBreadcrumb(path);
+
+    const list = document.getElementById("file-list");
+    list.innerHTML = "";
+
+    // Add link to parent directory (if not root)
+    if (path) {
+      const up = path.split("/").slice(0, -1).join("/");
+      const li = document.createElement("li");
+      li.innerHTML = `<a href="#" onclick="loadFiles('${up}')">Parent Directory</a>`;
+      list.appendChild(li);
+    }
+
+    files.forEach(file => {
+      const li = document.createElement("li");
+      if (file.type === "dir") {
+        // Folder: add trailing slash like Apache style
+        li.innerHTML = `<a href="#" onclick="loadFiles('${file.path}')">${file.name}/</a>`;
+      } else {
+        // File: just name, clickable to view content
+        li.innerHTML = `<a href="#" onclick="viewFile('${file.download_url}', '${file.name}')">${file.name}</a>`;
+      }
+      list.appendChild(li);
+    });
+
+    // Hide file content viewer when browsing folders
+    document.getElementById("file-content")?.style && (document.getElementById("file-content").style.display = "none");
+  }
+
+  async function viewFile(url, filename) {
+    const res = await fetch(url);
+    if (!res.ok) {
+      alert("Failed to load file.");
+      return;
+    }
+    const content = await res.text();
+    let viewer = document.getElementById("file-content");
+    if (!viewer) {
+      viewer = document.createElement("pre");
+      viewer.id = "file-content";
+      viewer.style.borderTop = "1px solid #ccc";
+      viewer.style.marginTop = "1em";
+      viewer.style.paddingTop = "1em";
+      viewer.style.whiteSpace = "pre-wrap";
+      document.body.appendChild(viewer);
+    }
+    viewer.textContent = content;
+    viewer.style.display = "block";
+    window.scrollTo(0, document.body.scrollHeight);
+  }
+
+  function renderBreadcrumb(path) {
+    const container = document.getElementById("breadcrumb");
+    const parts = path.split("/").filter(Boolean);
+    let fullPath = "";
+    let html = `<a href="#" onclick="loadFiles('')">/</a>`;
+    parts.forEach(part => {
+      fullPath += (fullPath ? "/" : "") + part;
+      html += ` / <a href="#" onclick="loadFiles('${fullPath}')">${part}</a>`;
+    });
+    container.innerHTML = html;
+  }
+
+  loadFiles();
+</script>
+
+</body>
+</html>
+
